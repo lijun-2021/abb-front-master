@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Petri网底层仿真推演</title>
+    <style>
+        /* 1. 基础全屏样式 */
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #f5f7fa; }
+        
+        /* 2. 现代化的悬浮工具栏 (放在页面正上方) */
+        .modern-toolbar {
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%); /* 居中显示 */
+            z-index: 1000;
+            display: flex;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 10px 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border: 1px solid #ebeef5;
+        }
+
+        /* 3. 按钮美化 */
+        .modern-toolbar button {
+            padding: 6px 12px;
+            cursor: pointer;
+            border: 1px solid #dcdfe6;
+            border-radius: 4px;
+            background: #fff;
+            color: #606266;
+            font-size: 13px;
+            transition: all 0.3s;
+        }
+        .modern-toolbar button:hover {
+            color: #409eff;
+            border-color: #c6e2ff;
+            background-color: #ecf5ff;
+        }
+        .modern-toolbar .btn-danger:hover {
+            color: #f56c6c;
+            border-color: #fbc4c4;
+            background-color: #fef0f0;
+        }
+
+        /* 4. 原版的右键菜单样式 */
+        #customContextMenu {
+            display: none;
+            position: absolute;
+            background-color: white;
+            border: 1px solid #ccc;
+            box-shadow: 2px 2px 8px rgba(0,0,0,0.1);
+            padding: 5px 0;
+            z-index: 9999;
+            border-radius: 4px;
+        }
+        #customContextMenu div {
+            cursor: pointer;
+            padding: 8px 20px;
+            font-size: 14px;
+            color: #333;
+        }
+        #customContextMenu div:hover {
+            background-color: #f5f7fa;
+            color: #409eff;
+        }
+    </style>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dagre/0.8.5/dagre.min.js"></script>
+</head>
+<body>
+
+    <div id="customContextMenu">
+        <div id="option1">折叠为宏库所</div>
+        <div id="option2">撤销</div>
+    </div>
+
+    <div class="modern-toolbar">
+        <button type="button" onclick="play()">▶️ 开始自动激发</button>
+        <button type="button" onclick="stop_play()" class="btn-danger">⏸️ 停止自动</button>
+        <div style="width: 1px; background: #dcdfe6; margin: 0 5px;"></div> <button type="button" onclick="stopsimulation()" class="btn-danger">⏹️ 停止仿真</button>
+        <button type="button" onclick="restartsimulation()">重启仿真</button>
+        <div style="width: 1px; background: #dcdfe6; margin: 0 5px;"></div> <button type="button" onclick="save_data()"> 保存数据</button>
+        <button type="button" onclick="save_macroPlace_data()">保存宏库所</button>
+        <button type="button" onclick="WebSocketTest()" style="color: #e6a23c;"> WebSocket 测试</button>
+    </div>
+
+    <script src="./test3.js"></script>
+    
+    <script src="./button.js"></script>
+    <script src="./fold.js"></script>
+    <script src="./make_macro_places.js"></script>
+    <script src="./ganttchart.js"></script>
+
+</body>
+</html>
