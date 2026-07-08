@@ -19,18 +19,34 @@
       <template #header>
         <div class="card-header abb-card-header">
           <span class="header-title"><i class="el-icon-list"></i> 待排程任务列表</span>
-          <el-button type="success" plain icon="CircleCheck" @click="handleSave" class="save-btn">
-            提交更改
+          
+          <el-button 
+            type="primary" 
+            icon="Connection" 
+            :disabled="selectedRows.length === 0"
+            @click="openBatchModal" 
+            class="batch-btn"
+          >
+            批量排程 {{ selectedRows.length > 0 ? `(已选 ${selectedRows.length} 台)` : '' }}
           </el-button>
-        </div>
+          </div>
       </template>
 
-      <el-table :data="tableData" border stripe style="width: 100%" row-key="snCode" class="abb-table" header-cell-class-name="abb-table-header">
+      <el-table 
+        :data="tableData" 
+        border stripe style="width: 100%" 
+        row-key="snCode" 
+        class="abb-table" 
+        header-cell-class-name="abb-table-header"
+        @selection-change="handleSelectionChange"
+      >
         
+        <el-table-column type="selection" width="55" align="center" fixed />
+
         <el-table-column type="expand">
             <template #default="scope">
                 <div class="expand-detail">
-      
+        
                 <div v-if="getNcrList(scope.row, 'h').length > 0" class="ncr-reason-box alert-box">
                   <el-alert 
                     v-for="(ncr, index) in getNcrList(scope.row, 'h')" 
@@ -43,7 +59,7 @@
                     style="margin-bottom: 8px;"
                  />
                 </div>
-      
+        
                 <div v-if="getNcrList(scope.row, 'l').length > 0" class="ncr-reason-box alert-box">
                   <el-alert 
                      v-for="(ncr, index) in getNcrList(scope.row, 'l')" 
@@ -60,13 +76,11 @@
             <div v-if="getNcrList(scope.row, 'h').length === 0 && getNcrList(scope.row, 'l').length === 0" class="empty-ncr">
               <el-alert title="该柜无异常记录" type="success" show-icon :closable="false" plain/>
             </div>
-      
+        
             </div>
           </template>
         </el-table-column>
         
-        
-
         <el-table-column label="SN 编号" width="200" align="center" fixed>
           <template #default="scope">
             <span 
@@ -81,15 +95,36 @@
         </el-table-column>
 
 
+
+        <el-table-column prop="snContract" label="合同名称" width="120" align="center" />
+        
+        <el-table-column label="挂证状态" width="100" align="center">
+          <template #default="scope">
+            <el-tag v-if="scope.row.certification === 1" type="success" effect="light">已挂证</el-tag>
+            <el-tag v-else type="info" effect="plain">未挂证</el-tag>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="FAT 时间" width="170" align="center">
+          <template #default="scope">
+            <div v-if="scope.row.fatBeginT" style="font-size: 12px;">
+              {{ scope.row.fatBeginT }} <br>至<br> {{ scope.row.fatEndT }}
+            </div>
+            <span v-else style="color: #909399;">-</span>
+          </template>
+        </el-table-column>
+
+
+
+
+
         <el-table-column prop="productionLine" label="产线" width="130" align="center" />
         <el-table-column prop="offlineTime" label="耐压产出时间" width="160" align="center" sortable/>
 
         <el-table-column label="FAT" width="80" align="center">
           <template #default="scope">
             <el-tag v-if="scope.row.fat === 1" type="success" effect="dark" size="small">是</el-tag>
-            
             <el-tag v-else-if="scope.row.fat === 0" type="info" effect="plain" size="small">否</el-tag>
-            
             <span v-else style="color: #909399;">-</span>
           </template>
         </el-table-column>
@@ -110,8 +145,14 @@
 
         <el-table-column label="功能检验区域" width="140" align="center">
           <template #default="scope">
-            <el-select v-model="scope.row.area" size="small" placeholder="请选择" class="table-select" @change="trackChange(scope.row)">
-              <el-option v-for="a in ['K1','K2','A1','A2','A3','A4','A5','A6']" :key="a" :label="a" :value="a" />
+            <el-select 
+              v-model="scope.row.area" 
+              size="small" 
+              placeholder="请选择" 
+              class="table-select" 
+              @change="(val) => handleAreaChange(scope.row, val)"
+            >
+              <el-option v-for="a in ['500','K1','K2','A1','A2','A3','A4','A5','A6']" :key="a" :label="a" :value="a" />
             </el-select>
           </template>
         </el-table-column>
@@ -144,8 +185,6 @@
         </el-table-column>
       </el-table>
 
-    
-      
       <div class="pagination-container" style="margin-top: 16px; display: flex; justify-content: flex-end;">
         <el-pagination
           v-model:current-page="queryParams.pageNum"
@@ -158,36 +197,50 @@
           @current-change="handleCurrentChange"
         />
       </div>
-      
-    
-
-
-
-
     </el-card>
    </el-main>
 
-   <el-dialog v-model="dialogVisible" title="人员任务调度看板" width="1100px" destroy-on-close class="abb-dialog">
+   <el-dialog v-model="dialogVisible" :title="isBatchMode ? '批量分配 - 人员任务调度看板' : '人员任务调度看板'" width="1100px" destroy-on-close class="abb-dialog">
+    
+    <div class="group-filter-bar">
+      <span class="filter-label">选择组别：</span>
+      <el-radio-group v-model="workerQueryParams.groupId" @change="handleGroupChange" size="default">
+        <el-radio-button label="">全部人员</el-radio-button>
+        <el-radio-button label="A组">A组</el-radio-button>
+        <el-radio-button label="B组">B组</el-radio-button>
+        <el-radio-button label="C组">C组</el-radio-button>
+        <el-radio-button label="D组">D组</el-radio-button>
+        </el-radio-group>
+    </div>
+
     <el-table :data="workerList" border class="worker-table" header-cell-class-name="abb-table-header">
-      <el-table-column label="员工姓名" width="120" align="center" fixed>
+      <el-table-column label="员工姓名" width="130" align="center" fixed>
         <template #default="scope">
           <el-button type="primary" link class="worker-name-btn" @click="selectWorker(scope.row)">
             <el-icon><Avatar /></el-icon> {{ scope.row.EmpName }}
           </el-button>
+          <div v-if="scope.row.groupName" class="worker-group-tag">{{ scope.row.groupName }}</div>
         </template>
       </el-table-column>
-      <el-table-column v-for="n in 7" :key="n" :label="`任务槽位 ${n}`" align="center" min-width="130">
+      
+      <el-table-column label="任务分配情况 (最多20个槽位)" min-width="600">
         <template #default="scope">
-           <div 
-             v-if="scope.row.taskList[n-1]" 
-             :class="['modern-task-dot', getTaskDotClass(scope.row.taskList[n-1].status)]"
-             :title="scope.row.taskList[n-1].snCode"
-           >
-             <span class="sn-text">{{ scope.row.taskList[n-1].snCode }}</span>
+           <div class="task-slot-container">
+             <div v-for="(task, index) in scope.row.taskList" :key="index" class="task-slot-wrapper">
+                <div 
+                  v-if="task" 
+                  :class="['modern-task-dot mini-dot', getTaskDotClass(task.status)]"
+                  :title="task.snCode"
+                >
+                  <span class="sn-text">{{ task.snCode }}</span>
+                </div>
+                <div v-else class="empty-slot-mini" :title="`槽位 ${index + 1}`">
+                  {{ index + 1 }}
+                </div>
+             </div>
            </div>
-           <div v-else class="empty-slot">-</div>
        </template>
-     </el-table-column>
+      </el-table-column>
     </el-table>
 
     <div class="pagination-container" style="margin-top: 16px; display: flex; justify-content: flex-end;">
@@ -203,9 +256,6 @@
       />
     </div>
 
-
-
-
     <template #footer>
       <div class="legend-bar-container">
         <span class="legend-title">状态图例：</span>
@@ -218,40 +268,38 @@
       </div>
     </template>
    </el-dialog>
- </div>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import { Calendar, Search, Refresh, CircleCheck, User, Avatar, List, Close } from '@element-plus/icons-vue'
+import { Calendar, Search, Refresh, CircleCheck, User, Avatar, List, Close, Connection } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
-// 🌟 1. 引入你写好的 API 请求函数
-import { getScheduleList, getWorkerTasks, ScheduleRecord, batchUpdateScheduleAssign,BatchUpdatePayload} from '@/api/abb/schedule-api'
+// API 引入（保持不变）
+import { getScheduleList, getWorkerTasks, ScheduleRecord, batchUpdateScheduleAssign, BatchUpdatePayload } from '@/api/abb/schedule-api'
 
-// 🌟 替换原来的 queryParams，加上分页参数
 const queryParams = reactive({ 
   snCode: '',
   pageNum: 1,
   pageSize: 10 
 })
-const total = ref(0) // 主表总条数
+const total = ref(0) 
 
-// 🌟 新增：人员看板的分页参数
 const workerQueryParams = reactive({
   pageNum: 1,
   pageSize: 10
 })
-const workerTotal = ref(0) // 人员总条数
+const workerTotal = ref(0) 
 const dialogVisible = ref(false)
 const activeRow = ref<any>(null)
 
-// 提取并过滤动态数量的 NCR 记录
-// 参数 prefix 传 'h' 代表高压，传 'l' 代表低压
-// 🌟 给 row 穿上 ScheduleRecord 的衣服
+// 🌟 新增：批量操作相关的状态
+const selectedRows = ref<any[]>([]) 
+const isBatchMode = ref(false) // 标志位：判断当前打开看板是“单选”还是“批量选”
+
 const getNcrList = (row: ScheduleRecord, prefix: string) => {
   const targetPrefix = `${prefix}NcrDescription`; 
-  
   return Object.keys(row)
     .filter(key => key.startsWith(targetPrefix))
     .sort((a, b) => {
@@ -263,7 +311,6 @@ const getNcrList = (row: ScheduleRecord, prefix: string) => {
     .filter(val => val && String(val).trim() !== '');
 };
 
-// 看板弹窗样式转化函数 (0:红/Todo, 1:黄/Doing, 2:绿/Done)
 const getTaskDotClass = (statusCode: number) => {
   if (statusCode === 2) return 'task-done-solid'    
   if (statusCode === 1) return 'task-doing-solid'   
@@ -274,35 +321,23 @@ const getTaskDotClass = (statusCode: number) => {
 const tableData = ref<any[]>([])
 const workerList = ref<any[]>([])
 
-// 🌟 2. 请求主表格数据
-
 const fetchTableData = async () => {
   try {
     const res: any = await getScheduleList({
-      pageNum: queryParams.pageNum,   // 动态读取当前页
-      pageSize: queryParams.pageSize, // 动态读取每页条数
+      pageNum: queryParams.pageNum,
+      pageSize: queryParams.pageSize,
       snCode: queryParams.snCode 
     })
-
     const list = res.list || res.data?.list || res.data?.rows || res.data || res
     tableData.value = Array.isArray(list) ? list : []
-
-    
-    
-    // 🌟 核心：接住后端返回的数组
-    
-    // 🌟 核心：接住后端返回的总条数（可能是 res.total 或 res.data.total）
     total.value = res.total || res.data?.total || 0
   } catch (error) {
     console.error('获取排程列表异常:', error)
   }
 }
 
-// 🌟 3. 请求人员任务看板数据 (包含终极跨表关联逻辑)
-// 核心思路：后端接口直接返回分页后的人员列表 + 每个人对应的 7 个任务槽位的 SN 号。前端拿到这个数据后，再根据主表格的数据状态，映射出每个任务槽位的状态（绿/黄/红）。
 const fetchWorkerList = async () => {
   try {
-    // 把分页参数传给获取人员的接口
     const res: any = await getWorkerTasks({
       pageNum: workerQueryParams.pageNum,
       pageSize: workerQueryParams.pageSize
@@ -314,30 +349,21 @@ const fetchWorkerList = async () => {
     }
     const workerArray = Array.isArray(rawData) ? rawData : []
 
-    // 🌟 核心：接住后端返回的人员总条数 (你那 43 条的真相就在这里)
     workerTotal.value = res.total || res.data?.total || 0
 
-    // ... 下面的 workerList.value = workerArray.map(...) 保持原样不动！
-
-    // 组装平铺字段并映射状态
     workerList.value = workerArray.map((worker: any) => {
       const tasks = []
       for (let i = 1; i <= 7; i++) {
         const sn = worker[`snCode${i}`] 
-        
         if (sn) {
           const matchedRow = tableData.value.find(item => item.snCode === sn)
-          let taskStatus = 1 // 兜底：进行中
-          
+          let taskStatus = 1 
           if (matchedRow) {
             if (matchedRow.functionStatus === 2) {
-              // 主表 2(已完成) -> 看板 2(绿框)
               taskStatus = 2
             } else if (matchedRow.functionStatus === 1 || (matchedRow.functionStatus === 0 && matchedRow.functionEmpName)) {
-              // 主表 1(进行中) 或者 (主表0但已分人) -> 看板 1(黄框)
               taskStatus = 1
             } else {
-              // 主表 0(未完成) 且没分人 -> 看板 0(红框)
               taskStatus = 0
             }
           }
@@ -346,7 +372,6 @@ const fetchWorkerList = async () => {
           tasks.push(null) 
         }
       }
-
       return {
         ...worker,               
         EmpName: worker.empName, 
@@ -354,292 +379,182 @@ const fetchWorkerList = async () => {
         taskList: tasks          
       }
     })
-
   } catch (error) {
     console.error('获取人员看板异常:', error)
   }
 }
 
-// 初始化
 onMounted(() => {
   fetchTableData()
 })
 
-// 打开弹窗并刷新最新看板
+// 🌟 新增：记录表格勾选变化
+const handleSelectionChange = (val: any[]) => {
+  selectedRows.value = val
+}
+
+// 🌟 单条打开：双击输入框打开弹窗
 const openModal = (row: any) => {
+  isBatchMode.value = false // 标记为单选模式
   activeRow.value = row
   fetchWorkerList()
   dialogVisible.value = true
 }
 
-// 选中员工
-const selectWorker = (workerRow: any) => {
-  if (!activeRow.value) return
+// 🌟 批量打开：点击批量排程按钮
+const openBatchModal = () => {
+  isBatchMode.value = true // 标记为批量模式
+  fetchWorkerList()
+  dialogVisible.value = true
+}
+
+// 🌟 核心：统一的保存分配逻辑
+const selectWorker = async (workerRow: any) => {
   const empName = workerRow.EmpName || workerRow.empName || ''
-  activeRow.value.functionEmpName = empName
-  //activeRow.value.functionEmpId = workerRow.EmpId
-  dialogVisible.value = false
-  ElMessage.success(`成功分配员工：${empName}`)
-  trackChange(activeRow.value) // 🌟 核心：通知备忘录，这行被改了！
+
+  if (isBatchMode.value) {
+    // 【批量操作模式】
+    const ids = selectedRows.value.map(r => r.id)
+    const names = selectedRows.value.map(() => empName)
+    const areas = selectedRows.value.map(r => r.area || '')
+
+    try {
+      await batchUpdateScheduleAssign({
+        ids: ids,
+        functionEmpNames: names,
+        areas: areas
+      })
+      ElMessage.success(`成功为 ${ids.length} 台设备批量分配员工：${empName}`)
+      dialogVisible.value = false
+      fetchTableData() // 刷新列表
+    } catch (error) {
+      ElMessage.error('批量分配失败，请重试')
+    }
+  } else {
+    // 【单选无感提交模式】
+    if (!activeRow.value) return
+    const row = activeRow.value
+    // 1. 记录旧值用于回退
+    const oldName = row.functionEmpName
+    // 2. 乐观更新（让用户立刻看到名字）
+    row.functionEmpName = empName
+
+    try {
+      // 3. 复用后端的批量接口，只传1个ID进去
+      await batchUpdateScheduleAssign({
+        ids: [row.id],
+        functionEmpNames: [row.functionEmpName],
+        areas: [row.area || '']
+      })
+      ElMessage.success(`设备 ${row.snCode} 成功分配给：${empName}`)
+      dialogVisible.value = false
+    } catch (error) {
+      // 4. 接口失败，回退数据
+      row.functionEmpName = oldName
+      ElMessage.error('分配失败，已回退数据')
+    }
+  }
 }
 
-// 删除员工分配
-const removeEmployee = (row: any) => {
+// 🌟 核心：无感删除分配
+const removeEmployee = async (row: any) => {
+  // 1. 记录旧值
+  const oldName = row.functionEmpName
+  const oldArea = row.area
+  
+  // 2. 乐观清空
   row.functionEmpName = '';
-  row.area = ""
-  trackChange(row)// 🌟 核心：通知备忘录，这行被改了！
-  ElMessage.success('已删除员工分配')
-}
-
-// 搜索
-const handleQuery = () => {
-  fetchTableData()
-}
-
-// 重置
-const resetQuery = () => {
-  queryParams.snCode = ''
-  fetchTableData()
-}
-
-// 提交保存
-/*const handleSave = async () => {
-  if (!activeRow.value || !activeRow.value.id) {
-    return ElMessage.warning('请先双击分配功能员或修改区域后再提交')
-  }
+  row.area = '';
 
   try {
-    await updateScheduleAssign({
-      id: activeRow.value.id,
-      functionEmpName: activeRow.value.functionEmpName,
-      area: activeRow.value.area
+    // 3. 立刻调接口保存
+    await batchUpdateScheduleAssign({
+      ids: [row.id],
+      functionEmpNames: [''], // 传空代表删除
+      areas: ['']
     })
-
-    ElMessage.success('排程分配已成功保存至服务器！')
-    fetchTableData() // 保存后刷新主表
-    activeRow.value = null
-  } catch (error) {
-    console.error('保存请求异常:', error)
-  }
-}*/
-// 假设你有一个数组存着你要提交的多行数据（比如通过 el-table 的 selection-change 获取的选中行）
-// const selectedRows = ref([]) 
-
-// 专门记录被修改过的行
-const modifiedRows = ref<any[]>([])
-
-// 自动追踪函数：只要行数据被动过，就把它塞进备忘录
-const trackChange = (row: any) => {
-  // 先查一下备忘录里是不是已经有这行了，避免重复添加
-  const exists = modifiedRows.value.find(item => item.id === row.id)
-  if (!exists) {
-    modifiedRows.value.push(row)
+    ElMessage.success('已清空该设备的人员和区域分配')
+  } catch(error) {
+    // 4. 失败回退
+    row.functionEmpName = oldName
+    row.area = oldArea
+    ElMessage.error('清空失败，已回退数据')
   }
 }
 
-
-
-const handleSave = async () => {
-  // 1. 拦截空操作
-  if (modifiedRows.value.length === 0) {
-    return ElMessage.warning('您还没有进行任何修改')
-  }
-
-  // 2. 准备后端需要的“三个大数组”
-  const payload: {
-    ids: any[];
-    functionEmpNames: string[];
-    areas: string[];
-  } = {
-    ids: [],
-    functionEmpNames: [],
-    areas: []
-  }
-
-  // 3. 遍历咱们的备忘录
-  modifiedRows.value.forEach(row => {
-    payload.ids.push(row.id)
-    payload.functionEmpNames.push(row.functionEmpName || "")
-    payload.areas.push(row.area || "")
-  })
-
+// 🌟 核心：下拉框无感修改区域
+const handleAreaChange = async (row: any, newVal: string) => {
   try {
-    await batchUpdateScheduleAssign(payload) 
-    ElMessage.success(`成功保存了 ${modifiedRows.value.length} 个员工分配！`)
-    fetchTableData() 
-    
-    // 4. 🌟 保存成功后，清空备忘录，准备迎接下一波修改
-    modifiedRows.value = [] 
+    await batchUpdateScheduleAssign({
+      ids: [row.id],
+      functionEmpNames: [row.functionEmpName || ''],
+      areas: [newVal]
+    })
+    ElMessage.success('区域更新成功')
   } catch (error) {
-    console.error('批量保存异常:', error)
+    ElMessage.error('区域更新失败，正在刷新数据')
+    fetchTableData() // 如果修改区域失败，最稳妥的办法是重新拉取一次列表，保证下拉框显示正确
   }
 }
 
-// ================= 🌟 新增分页切换事件 =================
+const handleQuery = () => fetchTableData()
+const resetQuery = () => { queryParams.snCode = ''; fetchTableData() }
 
-// 1. 主表切换“每页几条”
-const handleSizeChange = (newSize: number) => {
-  queryParams.pageSize = newSize
-  fetchTableData()
-}
-// 2. 主表切换“页码”
-const handleCurrentChange = (newPage: number) => {
-  queryParams.pageNum = newPage
-  fetchTableData()
-}
+const handleSizeChange = (newSize: number) => { queryParams.pageSize = newSize; fetchTableData() }
+const handleCurrentChange = (newPage: number) => { queryParams.pageNum = newPage; fetchTableData() }
 
-// 3. 看板切换“每页几条”
-const handleWorkerSizeChange = (newSize: number) => {
-  workerQueryParams.pageSize = newSize
-  fetchWorkerList()
-}
-// 4. 看板切换“页码”
-const handleWorkerCurrentChange = (newPage: number) => {
-  workerQueryParams.pageNum = newPage
-  fetchWorkerList()
-}
-
-
+const handleWorkerSizeChange = (newSize: number) => { workerQueryParams.pageSize = newSize; fetchWorkerList() }
+const handleWorkerCurrentChange = (newPage: number) => { workerQueryParams.pageNum = newPage; fetchWorkerList() }
 </script>
 
 <style scoped>
-/* ============================================================ */
-/* ===================== 全局 & 通用样式 ===================== */
-/* ============================================================ */
+/* 保持你原本的样式完全不变，补充了批量按钮的一点点样式修饰 */
 .main-content { padding: 24px; background-color: #f4f6f9; min-height: calc(100vh - 64px); }
-
 .dashboard-card { border-radius: 8px; border: none; box-shadow: 0 2px 12px 0 rgba(0,0,0,0.05) !important; margin-bottom: 20px; transition: all 0.3s; }
 .dashboard-card:hover { box-shadow: 0 4px 16px 0 rgba(0,0,0,0.1) !important; }
-
 .bold-label :deep(.el-form-item__label) { font-weight: bold; color: #303133; }
 .custom-input :deep(.el-input__wrapper) { border-radius: 20px; padding-left: 15px; }
-
 .abb-btn-danger { background-color: #ff0000; border-color: #ff0000; color: #fff; font-weight: bold; border-radius: 20px; padding: 10px 20px; transition: all 0.3s; }
 .abb-btn-danger:hover, .abb-btn-danger:focus { background-color: #e60000; border-color: #e60000; opacity: 0.9; transform: translateY(-1px); }
-
-/* ============================================================ */
-/* ===================== 主表格区样式 ======================== */
-/* ============================================================ */
 .abb-card-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; }
 .header-title { font-size: 18px; font-weight: bold; color: #303133; display: flex; align-items: center; gap: 8px; }
-.save-btn { border-radius: 20px; font-weight: bold; }
+
+/* 🌟 新增的批量按钮样式 */
+.batch-btn { border-radius: 20px; font-weight: bold; transition: all 0.3s; }
+.batch-btn:disabled { opacity: 0.6; }
 
 .abb-table { border-radius: 8px; overflow: hidden; }
 :deep(.abb-table-header) { background-color: #f5f7fa !important; color: #606266; font-weight: bold; text-align: center; }
 :deep(.el-table__row) { transition: all 0.2s; }
 :deep(.el-table__row:hover > td) { background-color: #ecf5ff !important; }
-
 .expand-detail { padding: 15px 50px; background-color: #fafafa; border-radius: 4px; }
 .alert-box { margin: 5px 0; }
-
-/* 🌟 主表格完成状态 - 立体 Tag 风格 */
 .table-status-badge { padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; }
 .status-todo { background-color: #fef0f0; color: #f56c6c; border: 1px solid #fbc4c4; box-shadow: inset 0 1px 1px rgba(255,255,255,0.8); }
 .status-doing { background-color: #fdf6ec; color: #e6a23c; border: 1px solid #f5dab1; box-shadow: inset 0 1px 1px rgba(255,255,255,0.8); }
 .status-done { background-color: #f0f9eb; color: #67C23A; border: 1px solid #c2e7b0; box-shadow: inset 0 1px 1px rgba(255,255,255,0.8); }
-
 .table-select :deep(.el-input__wrapper) { border-radius: 15px; }
-
 .click-input :deep(.el-input__wrapper) { cursor: pointer; border-radius: 15px; transition: all 0.3s; }
 .click-input :deep(.el-input__wrapper):hover { border-color: #ff0000; background-color: #fff1f1; }
 .click-input :deep(.el-input__inner) { cursor: pointer; font-weight: bold; color: #ff0000; }
-
-/* 员工分配单元格样式 */
-.employee-cell {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.delete-btn {
-  padding: 4px;
-  border-radius: 50%;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.delete-btn:hover {
-  background-color: #ff4444;
-  transform: scale(1.1);
-}
-
-/* ============================================================ */
-/* ===================== 弹窗看板区样式 ====================== */
-/* ============================================================ */
+.employee-cell { display: flex; align-items: center; gap: 8px; }
+.delete-btn { padding: 4px; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; }
+.delete-btn:hover { background-color: #ff4444; transform: scale(1.1); }
 :deep(.abb-dialog) { border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
 :deep(.abb-dialog .el-dialog__header) { background-color: #f5f7fa; margin-right: 0; padding: 20px 25px; border-bottom: 1px solid #dcdfe6; }
 :deep(.abb-dialog .el-dialog__title) { font-weight: bold; color: #303133; font-size: 20px; }
-
 .worker-table { margin: 10px 0; }
 .worker-name-btn { font-weight: bold; font-size: 14px; display: flex; align-items: center; gap: 4px; }
 .worker-name-btn:hover { text-decoration: underline; transform: scale(1.05); }
-
-/* 🌟 看板完成状态 - 立体、果冻感的实心块，自带呼吸灯效果 */
-.modern-task-dot {
-  padding: 8px 12px;
-  border-radius: 8px; 
-  color: #fff; 
-  cursor: pointer;
-  transition: all 0.3s ease;
-  width: 110px; 
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.15); 
-  position: relative;
-  overflow: hidden;
-}
-
-.modern-task-dot::after {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; width: 100%; height: 100%;
-  background-image: linear-gradient(120deg, rgba(255,255,255,0) 30%, rgba(255,255,255,0.6) 50%, rgba(255,255,255,0) 70%);
-  transition: all 0.6s;
-  transform: translateX(-100%);
-}
-
-.modern-task-dot:hover {
-  transform: translateY(-2px) scale(1.03); 
-  box-shadow: 0 5px 15px rgba(0,0,0,0.25); 
-}
-.modern-task-dot:hover::after {
-  transform: translateX(100%); 
-}
-
-.sn-text {
-  font-size: 11px;
-  font-weight: bold;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  letter-spacing: 0.5px;
-}
-
-/* 颜色定义 */
-.task-done-solid {
-  background: linear-gradient(145deg, #67C23A, #58a531);
-  border: none;
-  box-shadow: inset 0 1px 1px rgba(255,255,255,0.4), 0 2px 4px rgba(0,0,0,0.15); 
-}
-.task-doing-solid {
-  background: linear-gradient(145deg, #E6A23C, #c98c33);
-  border: none;
-  box-shadow: inset 0 1px 1px rgba(255,255,255,0.4), 0 2px 4px rgba(0,0,0,0.15);
-}
-.task-todo-solid {
-  background: linear-gradient(145deg, #F56C6C, #d65959);
-  border: none;
-  box-shadow: inset 0 1px 1px rgba(255,255,255,0.4), 0 2px 4px rgba(0,0,0,0.15);
-}
-
+.modern-task-dot { padding: 8px 12px; border-radius: 8px; color: #fff; cursor: pointer; transition: all 0.3s ease; width: 110px; height: 32px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.15); position: relative; overflow: hidden; }
+.modern-task-dot::after { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-image: linear-gradient(120deg, rgba(255,255,255,0) 30%, rgba(255,255,255,0.6) 50%, rgba(255,255,255,0) 70%); transition: all 0.6s; transform: translateX(-100%); }
+.modern-task-dot:hover { transform: translateY(-2px) scale(1.03); box-shadow: 0 5px 15px rgba(0,0,0,0.25); }
+.modern-task-dot:hover::after { transform: translateX(100%); }
+.sn-text { font-size: 11px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: 0.5px; }
+.task-done-solid { background: linear-gradient(145deg, #67C23A, #58a531); border: none; box-shadow: inset 0 1px 1px rgba(255,255,255,0.4), 0 2px 4px rgba(0,0,0,0.15); }
+.task-doing-solid { background: linear-gradient(145deg, #E6A23C, #c98c33); border: none; box-shadow: inset 0 1px 1px rgba(255,255,255,0.4), 0 2px 4px rgba(0,0,0,0.15); }
+.task-todo-solid { background: linear-gradient(145deg, #F56C6C, #d65959); border: none; box-shadow: inset 0 1px 1px rgba(255,255,255,0.4), 0 2px 4px rgba(0,0,0,0.15); }
 .empty-slot { color: #dcdfe6; font-size: 12px; }
-
-/* 图例栏 */
 .legend-bar-container { display: flex; align-items: center; justify-content: flex-end; gap: 15px; padding: 10px 25px; background-color: #fafafa; border-top: 1px solid #dcdfe6; }
 .legend-title { font-size: 13px; color: #909399; font-weight: bold; }
 .legend-items { display: flex; align-items: center; gap: 18px; font-size: 13px; color: #606266; }
