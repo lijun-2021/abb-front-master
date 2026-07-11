@@ -2,16 +2,84 @@
   <div style="width: 100%; height: 100%">
    <el-main class="main-content">
     <el-card class="search-card dashboard-card" shadow="never">
-      <el-form :inline="true" :model="queryParams" class="demo-form-inline">
-        <el-form-item label="SN号" class="bold-label">
-          <el-input v-model="queryParams.snCode" placeholder="请输入序列号" clearable prefix-icon="Search" class="custom-input"/>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" icon="Search" @click="handleQuery" class="abb-btn-danger">
-            搜索
-          </el-button>
-          <el-button icon="Refresh" @click="resetQuery">重置</el-button>
-        </el-form-item>
+      <el-form :model="queryParams" label-width="90px" class="advanced-search-form">
+        <el-row :gutter="20">
+          <el-col :xs="24" :sm="12" :md="8" :lg="6">
+            <el-form-item label="SN号" class="bold-label">
+              <el-input v-model="queryParams.snCode" placeholder="请输入序列号" clearable prefix-icon="Search" />
+            </el-form-item>
+          </el-col>
+
+          <el-col :xs="24" :sm="12" :md="8" :lg="6">
+            <el-form-item label="功能状态" class="bold-label">
+              <el-select v-model="queryParams.functionStatus" placeholder="请选择状态" clearable style="width: 100%;">
+                <el-option label="未完成" :value="0" />
+                <el-option label="进行中" :value="1" />
+                <el-option label="已完成" :value="2" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+
+          <el-col :xs="24" :sm="12" :md="8" :lg="6">
+            <el-form-item label="员工姓名" class="bold-label">
+              <el-input v-model="queryParams.functionEmpName" placeholder="请输入员工姓名" clearable />
+            </el-form-item>
+          </el-col>
+
+          <el-col :xs="24" :sm="12" :md="8" :lg="6" v-show="isSearchExpand">
+            <el-form-item label="检测区域" class="bold-label">
+              <el-select v-model="queryParams.area" placeholder="请选择区域" clearable style="width: 100%;">
+                <el-option v-for="a in ['500','K1','K2','A1','A2','A3','A4','A5','A6']" :key="a" :label="a" :value="a" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+
+          <el-col :xs="24" :sm="12" :md="8" :lg="6" v-show="isSearchExpand">
+            <el-form-item label="产线" class="bold-label">
+              <el-input v-model="queryParams.productionLine" placeholder="请输入产线" clearable />
+            </el-form-item>
+          </el-col>
+
+          <el-col :xs="24" :sm="12" :md="8" :lg="6" v-show="isSearchExpand">
+            <el-form-item label="SN合同名称" class="bold-label">
+              <el-input v-model="queryParams.snContract" placeholder="请输入合同名称" clearable />
+            </el-form-item>
+          </el-col>
+
+          <el-col :xs="24" :sm="12" :md="8" :lg="6" v-show="isSearchExpand">
+            <el-form-item label="需要FAT" class="bold-label">
+              <el-select v-model="queryParams.fat" placeholder="请选择" clearable style="width: 100%;">
+                <el-option label="是" :value="1" />
+                <el-option label="否" :value="0" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+
+          <el-col :xs="24" :sm="24" :md="16" :lg="8" v-show="isSearchExpand">
+            <el-form-item label="下线时间" class="bold-label">
+              <el-date-picker
+                v-model="queryParams.offlineTime"
+                type="daterange"
+                range-separator="至"
+                start-placeholder="开始时间"
+                end-placeholder="结束时间"
+                value-format="YYYY-MM-DD"
+                clearable
+                style="width: 100%;"
+              />
+            </el-form-item>
+          </el-col>
+
+          <el-col :span="24" class="search-buttons-container">
+            <el-form-item label-width="0">
+              <el-button type="primary" icon="Search" @click="handleQuery" class="abb-btn-danger">搜索</el-button>
+              <el-button icon="Refresh" @click="resetQuery">重置</el-button>
+              <el-link type="primary" :icon="isSearchExpand ? 'ArrowUp' : 'ArrowDown'" @click="isSearchExpand = !isSearchExpand" style="margin-left: 12px; font-size: 13px;">
+                {{ isSearchExpand ? '收起高级筛选' : '展开高级筛选' }}
+              </el-link>
+            </el-form-item>
+          </el-col>
+        </el-row>
       </el-form>
     </el-card>
 
@@ -29,7 +97,7 @@
           >
             批量排程 {{ selectedRows.length > 0 ? `(已选 ${selectedRows.length} 台)` : '' }}
           </el-button>
-          </div>
+        </div>
       </template>
 
       <el-table 
@@ -40,13 +108,11 @@
         header-cell-class-name="abb-table-header"
         @selection-change="handleSelectionChange"
       >
-        
         <el-table-column type="selection" width="55" align="center" fixed />
 
         <el-table-column type="expand">
             <template #default="scope">
                 <div class="expand-detail">
-        
                 <div v-if="getNcrList(scope.row, 'h').length > 0" class="ncr-reason-box alert-box">
                   <el-alert 
                     v-for="(ncr, index) in getNcrList(scope.row, 'h')" 
@@ -59,7 +125,6 @@
                     style="margin-bottom: 8px;"
                  />
                 </div>
-        
                 <div v-if="getNcrList(scope.row, 'l').length > 0" class="ncr-reason-box alert-box">
                   <el-alert 
                      v-for="(ncr, index) in getNcrList(scope.row, 'l')" 
@@ -72,16 +137,14 @@
                      style="margin-bottom: 8px;"
                   />
                 </div>
-
-            <div v-if="getNcrList(scope.row, 'h').length === 0 && getNcrList(scope.row, 'l').length === 0" class="empty-ncr">
-              <el-alert title="该柜无异常记录" type="success" show-icon :closable="false" plain/>
-            </div>
-        
+                <div v-if="getNcrList(scope.row, 'h').length === 0 && getNcrList(scope.row, 'l').length === 0" class="empty-ncr">
+                  <el-alert title="该柜无异常记录" type="success" show-icon :closable="false" plain/>
+                </div>
             </div>
           </template>
         </el-table-column>
         
-        <el-table-column label="SN 编号" width="200" align="center" fixed>
+        <el-table-column label="SN 编号" width="180" align="center" fixed>
           <template #default="scope">
             <span 
               :style="{ 
@@ -94,8 +157,6 @@
           </template>
         </el-table-column>
 
-
-
         <el-table-column prop="snContract" label="合同名称" width="120" align="center" />
         
         <el-table-column label="挂证状态" width="100" align="center">
@@ -105,20 +166,7 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="FAT 时间" width="170" align="center">
-          <template #default="scope">
-            <div v-if="scope.row.fatBeginT" style="font-size: 12px;">
-              {{ scope.row.fatBeginT }} <br>至<br> {{ scope.row.fatEndT }}
-            </div>
-            <span v-else style="color: #909399;">-</span>
-          </template>
-        </el-table-column>
-
-
-
-
-
-        <el-table-column prop="productionLine" label="产线" width="130" align="center" />
+        <el-table-column prop="productionLine" label="产线" width="100" align="center" />
         <el-table-column prop="offlineTime" label="耐压产出时间" width="160" align="center" sortable/>
 
         <el-table-column label="FAT" width="80" align="center">
@@ -129,7 +177,18 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="功能状态" width="120" align="center">
+        <el-table-column label="FAT 时间" width="150" align="center">
+          <template #default="scope">
+            <div v-if="scope.row.fatBeginT" style="font-size: 12px; line-height: 1.2;">
+              <div>{{ scope.row.fatBeginT }}</div>
+              <div style="color: #909399;">至</div>
+              <div>{{ scope.row.fatEndT }}</div>
+            </div>
+            <span v-else style="color: #909399;">-</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="功能状态" width="100" align="center">
           <template #default="scope">
             <span :class="['table-status-badge', 
               scope.row.functionStatus === 2 ? 'status-done' : 
@@ -143,7 +202,7 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="功能检验区域" width="140" align="center">
+        <el-table-column label="功能检验区域" width="120" align="center">
           <template #default="scope">
             <el-select 
               v-model="scope.row.area" 
@@ -157,7 +216,7 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="功能检测员工姓名" min-width="170" align="center">
+        <el-table-column label="功能检测员工" min-width="170" align="center">
           <template #default="scope">
             <div class="employee-cell">
               <el-input
@@ -204,13 +263,13 @@
     
     <div class="group-filter-bar">
       <span class="filter-label">选择组别：</span>
-      <el-radio-group v-model="workerQueryParams.groupId" @change="handleGroupChange" size="default">
+      <el-radio-group v-model="workerQueryParams.empTeam" @change="handleGroupChange" size="default">
         <el-radio-button label="">全部人员</el-radio-button>
-        <el-radio-button label="A组">A组</el-radio-button>
-        <el-radio-button label="B组">B组</el-radio-button>
-        <el-radio-button label="C组">C组</el-radio-button>
-        <el-radio-button label="D组">D组</el-radio-button>
-        </el-radio-group>
+        <el-radio-button label="A">A组</el-radio-button>
+        <el-radio-button label="B">B组</el-radio-button>
+        <el-radio-button label="C">C组</el-radio-button>
+        <el-radio-button label="D">D组</el-radio-button>
+      </el-radio-group>
     </div>
 
     <el-table :data="workerList" border class="worker-table" header-cell-class-name="abb-table-header">
@@ -219,14 +278,14 @@
           <el-button type="primary" link class="worker-name-btn" @click="selectWorker(scope.row)">
             <el-icon><Avatar /></el-icon> {{ scope.row.EmpName }}
           </el-button>
-          <div v-if="scope.row.groupName" class="worker-group-tag">{{ scope.row.groupName }}</div>
+          <div v-if="scope.row.empTeam" class="worker-group-tag">{{ scope.row.empTeam }}组</div>
         </template>
       </el-table-column>
       
       <el-table-column label="任务分配情况 (最多20个槽位)" min-width="600">
         <template #default="scope">
            <div class="task-slot-container">
-             <div v-for="(task, index) in scope.row.taskList" :key="index" class="task-slot-wrapper">
+             <div v-for="(task, index) in (scope.row.taskList as any[])" :key="index" class="task-slot-wrapper">
                 <div 
                   v-if="task" 
                   :class="['modern-task-dot mini-dot', getTaskDotClass(task.status)]"
@@ -276,29 +335,61 @@ import { ref, reactive, onMounted } from 'vue'
 import { Calendar, Search, Refresh, CircleCheck, User, Avatar, List, Close, Connection } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
-// API 引入（保持不变）
-import { getScheduleList, getWorkerTasks, ScheduleRecord, batchUpdateScheduleAssign, BatchUpdatePayload } from '@/api/abb/schedule-api'
+// 假设这些方法已经在 api/abb/schedule-api 中定义
+import { getScheduleList, getWorkerTasks, batchUpdateScheduleAssign } from '@/api/abb/schedule-api'
 
+// 1. 🌟 别忘了在顶部引入图标
+import { ArrowDown, ArrowUp } from '@element-plus/icons-vue'
+
+// 2. 🌟 新增一个响应式变量，用来控制展开/收起状态
+const isSearchExpand = ref(false)
+
+// 3. 🌟 扩展查询参数，严格对齐后端字段
 const queryParams = reactive({ 
-  snCode: '',
   pageNum: 1,
-  pageSize: 10 
+  pageSize: 10,
+  snCode: '',                                 // SN号
+  productionLine: '',                         // 产线
+  area: '',                                   // 检测区域
+  offlineTime: null as string[] | null,      // 下线时间范围（Element日期范围绑定为数组）
+  functionEmpName: '',                        // 员工姓名
+  functionStatus: null as number | null,     // 功能检测状态 (0,1,2)
+  fat: null as number | null,                // 是否需要FAT (0,1)
+  snContract: ''                              // SN合同号
 })
+
+// 4. 🌟 重置查询条件：把所有新增的字段全都恢复初始化
+const resetQuery = () => {
+  queryParams.snCode = ''
+  queryParams.productionLine = ''
+  queryParams.area = ''
+  queryParams.offlineTime = null              // 日期重置为 null
+  queryParams.functionEmpName = ''
+  queryParams.functionStatus = null
+  queryParams.fat = null
+  queryParams.snContract = ''
+  
+  queryParams.pageNum = 1                     // 重置页码
+  fetchTableData()                            // 重新触发查询刷新表格
+}
+
+
 const total = ref(0) 
 
+// 看板参数增加 empTeam
 const workerQueryParams = reactive({
   pageNum: 1,
-  pageSize: 10
+  pageSize: 10,
+  empTeam: '' 
 })
 const workerTotal = ref(0) 
 const dialogVisible = ref(false)
 const activeRow = ref<any>(null)
 
-// 🌟 新增：批量操作相关的状态
 const selectedRows = ref<any[]>([]) 
-const isBatchMode = ref(false) // 标志位：判断当前打开看板是“单选”还是“批量选”
+const isBatchMode = ref(false) 
 
-const getNcrList = (row: ScheduleRecord, prefix: string) => {
+const getNcrList = (row: any, prefix: string) => {
   const targetPrefix = `${prefix}NcrDescription`; 
   return Object.keys(row)
     .filter(key => key.startsWith(targetPrefix))
@@ -340,7 +431,8 @@ const fetchWorkerList = async () => {
   try {
     const res: any = await getWorkerTasks({
       pageNum: workerQueryParams.pageNum,
-      pageSize: workerQueryParams.pageSize
+      pageSize: workerQueryParams.pageSize,
+      empTeam: workerQueryParams.empTeam // 传递组别参数给后端
     }) 
     
     let rawData = res.list || res.data?.list || res.data?.rows || res.data || res
@@ -348,12 +440,12 @@ const fetchWorkerList = async () => {
       rawData = rawData.list
     }
     const workerArray = Array.isArray(rawData) ? rawData : []
-
     workerTotal.value = res.total || res.data?.total || 0
 
     workerList.value = workerArray.map((worker: any) => {
       const tasks = []
-      for (let i = 1; i <= 7; i++) {
+      // 循环 20 次解析后端返回的 snCode1 到 snCode20
+      for (let i = 1; i <= 20; i++) {
         const sn = worker[`snCode${i}`] 
         if (sn) {
           const matchedRow = tableData.value.find(item => item.snCode === sn)
@@ -375,7 +467,8 @@ const fetchWorkerList = async () => {
       return {
         ...worker,               
         EmpName: worker.empName, 
-        EmpId: worker.empId,     
+        EmpId: worker.empId,
+        empTeam: worker.empTeam, // 接住后端的组别     
         taskList: tasks          
       }
     })
@@ -388,32 +481,34 @@ onMounted(() => {
   fetchTableData()
 })
 
-// 🌟 新增：记录表格勾选变化
+// 组别切换，重置页码并查询
+const handleGroupChange = () => {
+  workerQueryParams.pageNum = 1
+  fetchWorkerList()
+}
+
 const handleSelectionChange = (val: any[]) => {
   selectedRows.value = val
 }
 
-// 🌟 单条打开：双击输入框打开弹窗
 const openModal = (row: any) => {
-  isBatchMode.value = false // 标记为单选模式
+  isBatchMode.value = false 
   activeRow.value = row
   fetchWorkerList()
   dialogVisible.value = true
 }
 
-// 🌟 批量打开：点击批量排程按钮
 const openBatchModal = () => {
-  isBatchMode.value = true // 标记为批量模式
+  isBatchMode.value = true 
   fetchWorkerList()
   dialogVisible.value = true
 }
 
-// 🌟 核心：统一的保存分配逻辑
+// 统一的无感保存分配逻辑
 const selectWorker = async (workerRow: any) => {
   const empName = workerRow.EmpName || workerRow.empName || ''
 
   if (isBatchMode.value) {
-    // 【批量操作模式】
     const ids = selectedRows.value.map(r => r.id)
     const names = selectedRows.value.map(() => empName)
     const areas = selectedRows.value.map(r => r.area || '')
@@ -426,21 +521,17 @@ const selectWorker = async (workerRow: any) => {
       })
       ElMessage.success(`成功为 ${ids.length} 台设备批量分配员工：${empName}`)
       dialogVisible.value = false
-      fetchTableData() // 刷新列表
+      fetchTableData()
     } catch (error) {
       ElMessage.error('批量分配失败，请重试')
     }
   } else {
-    // 【单选无感提交模式】
     if (!activeRow.value) return
     const row = activeRow.value
-    // 1. 记录旧值用于回退
     const oldName = row.functionEmpName
-    // 2. 乐观更新（让用户立刻看到名字）
     row.functionEmpName = empName
 
     try {
-      // 3. 复用后端的批量接口，只传1个ID进去
       await batchUpdateScheduleAssign({
         ids: [row.id],
         functionEmpNames: [row.functionEmpName],
@@ -449,40 +540,34 @@ const selectWorker = async (workerRow: any) => {
       ElMessage.success(`设备 ${row.snCode} 成功分配给：${empName}`)
       dialogVisible.value = false
     } catch (error) {
-      // 4. 接口失败，回退数据
       row.functionEmpName = oldName
       ElMessage.error('分配失败，已回退数据')
     }
   }
 }
 
-// 🌟 核心：无感删除分配
+// 无感删除分配
 const removeEmployee = async (row: any) => {
-  // 1. 记录旧值
   const oldName = row.functionEmpName
   const oldArea = row.area
-  
-  // 2. 乐观清空
   row.functionEmpName = '';
   row.area = '';
 
   try {
-    // 3. 立刻调接口保存
     await batchUpdateScheduleAssign({
       ids: [row.id],
-      functionEmpNames: [''], // 传空代表删除
+      functionEmpNames: [''], 
       areas: ['']
     })
     ElMessage.success('已清空该设备的人员和区域分配')
   } catch(error) {
-    // 4. 失败回退
     row.functionEmpName = oldName
     row.area = oldArea
     ElMessage.error('清空失败，已回退数据')
   }
 }
 
-// 🌟 核心：下拉框无感修改区域
+// 无感修改区域
 const handleAreaChange = async (row: any, newVal: string) => {
   try {
     await batchUpdateScheduleAssign({
@@ -493,22 +578,20 @@ const handleAreaChange = async (row: any, newVal: string) => {
     ElMessage.success('区域更新成功')
   } catch (error) {
     ElMessage.error('区域更新失败，正在刷新数据')
-    fetchTableData() // 如果修改区域失败，最稳妥的办法是重新拉取一次列表，保证下拉框显示正确
+    fetchTableData() 
   }
 }
 
 const handleQuery = () => fetchTableData()
-const resetQuery = () => { queryParams.snCode = ''; fetchTableData() }
+
 
 const handleSizeChange = (newSize: number) => { queryParams.pageSize = newSize; fetchTableData() }
 const handleCurrentChange = (newPage: number) => { queryParams.pageNum = newPage; fetchTableData() }
-
 const handleWorkerSizeChange = (newSize: number) => { workerQueryParams.pageSize = newSize; fetchWorkerList() }
 const handleWorkerCurrentChange = (newPage: number) => { workerQueryParams.pageNum = newPage; fetchWorkerList() }
 </script>
 
 <style scoped>
-/* 保持你原本的样式完全不变，补充了批量按钮的一点点样式修饰 */
 .main-content { padding: 24px; background-color: #f4f6f9; min-height: calc(100vh - 64px); }
 .dashboard-card { border-radius: 8px; border: none; box-shadow: 0 2px 12px 0 rgba(0,0,0,0.05) !important; margin-bottom: 20px; transition: all 0.3s; }
 .dashboard-card:hover { box-shadow: 0 4px 16px 0 rgba(0,0,0,0.1) !important; }
@@ -519,7 +602,6 @@ const handleWorkerCurrentChange = (newPage: number) => { workerQueryParams.pageN
 .abb-card-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; }
 .header-title { font-size: 18px; font-weight: bold; color: #303133; display: flex; align-items: center; gap: 8px; }
 
-/* 🌟 新增的批量按钮样式 */
 .batch-btn { border-radius: 20px; font-weight: bold; transition: all 0.3s; }
 .batch-btn:disabled { opacity: 0.6; }
 
@@ -546,15 +628,26 @@ const handleWorkerCurrentChange = (newPage: number) => { workerQueryParams.pageN
 .worker-table { margin: 10px 0; }
 .worker-name-btn { font-weight: bold; font-size: 14px; display: flex; align-items: center; gap: 4px; }
 .worker-name-btn:hover { text-decoration: underline; transform: scale(1.05); }
-.modern-task-dot { padding: 8px 12px; border-radius: 8px; color: #fff; cursor: pointer; transition: all 0.3s ease; width: 110px; height: 32px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.15); position: relative; overflow: hidden; }
-.modern-task-dot::after { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-image: linear-gradient(120deg, rgba(255,255,255,0) 30%, rgba(255,255,255,0.6) 50%, rgba(255,255,255,0) 70%); transition: all 0.6s; transform: translateX(-100%); }
-.modern-task-dot:hover { transform: translateY(-2px) scale(1.03); box-shadow: 0 5px 15px rgba(0,0,0,0.25); }
-.modern-task-dot:hover::after { transform: translateX(100%); }
-.sn-text { font-size: 11px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: 0.5px; }
+
+/* 组别和 20槽位 样式 */
+.group-filter-bar { margin-bottom: 16px; display: flex; align-items: center; gap: 12px; background-color: #f5f7fa; padding: 10px 15px; border-radius: 8px; }
+.filter-label { font-size: 14px; font-weight: bold; color: #606266; }
+.worker-group-tag { font-size: 12px; color: #909399; margin-top: 4px; }
+.task-slot-container { display: flex; flex-wrap: wrap; gap: 8px; padding: 5px 0; }
+.task-slot-wrapper { display: inline-block; }
+.mini-dot { width: 80px; height: 28px; padding: 4px 8px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #fff; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.15); position: relative; overflow: hidden;}
+.mini-dot .sn-text { font-size: 10px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mini-dot::after { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-image: linear-gradient(120deg, rgba(255,255,255,0) 30%, rgba(255,255,255,0.6) 50%, rgba(255,255,255,0) 70%); transition: all 0.6s; transform: translateX(-100%); }
+.mini-dot:hover { transform: translateY(-2px) scale(1.03); box-shadow: 0 5px 15px rgba(0,0,0,0.25); }
+.mini-dot:hover::after { transform: translateX(100%); }
+.empty-slot-mini { width: 80px; height: 28px; border: 1px dashed #dcdfe6; border-radius: 6px; background-color: #fafafa; display: flex; align-items: center; justify-content: center; color: #c0c4cc; font-size: 12px; font-weight: bold; transition: all 0.3s; }
+.empty-slot-mini:hover { border-color: #a0cfff; color: #409eff; background-color: #ecf5ff; }
+
+/* 状态色 */
 .task-done-solid { background: linear-gradient(145deg, #67C23A, #58a531); border: none; box-shadow: inset 0 1px 1px rgba(255,255,255,0.4), 0 2px 4px rgba(0,0,0,0.15); }
 .task-doing-solid { background: linear-gradient(145deg, #E6A23C, #c98c33); border: none; box-shadow: inset 0 1px 1px rgba(255,255,255,0.4), 0 2px 4px rgba(0,0,0,0.15); }
 .task-todo-solid { background: linear-gradient(145deg, #F56C6C, #d65959); border: none; box-shadow: inset 0 1px 1px rgba(255,255,255,0.4), 0 2px 4px rgba(0,0,0,0.15); }
-.empty-slot { color: #dcdfe6; font-size: 12px; }
+
 .legend-bar-container { display: flex; align-items: center; justify-content: flex-end; gap: 15px; padding: 10px 25px; background-color: #fafafa; border-top: 1px solid #dcdfe6; }
 .legend-title { font-size: 13px; color: #909399; font-weight: bold; }
 .legend-items { display: flex; align-items: center; gap: 18px; font-size: 13px; color: #606266; }
