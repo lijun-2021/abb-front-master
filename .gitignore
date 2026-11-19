@@ -19,3 +19,13 @@ pnpm-lock.yaml
 package-lock.json
 .stylelintcache
 .eslintcache
+
+# AI 工具临时产物（文档解析、页面截图、原型打包结果等），不入库
+.codex-tmp/
+
+# IntelliJ 模块文件
+*.iml
+
+# 设计走查用的预览截图与对比页
+preview/
+design-qa.md

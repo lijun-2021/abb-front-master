@@ -53,7 +53,7 @@ httpRequest.interceptors.response.use(
     const { code, data, msg } = response.data;
 
     // 请求成功
-    if (code === ApiCodeEnum.SUCCESS) {
+    if (String(code) === ApiCodeEnum.SUCCESS) {
       return data;
     }
 

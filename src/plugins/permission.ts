@@ -9,6 +9,12 @@ export function setupPermission() {
   router.beforeEach(async (to, from, next) => {
     NProgress.start();
 
+    // 独立演示页面只使用本地数据，不依赖登录或动态菜单接口。
+    if (to.path === "/schedule-prototype") {
+      next();
+      return;
+    }
+
     try {
       const isLoggedIn = useUserStore().isLoggedIn();
 

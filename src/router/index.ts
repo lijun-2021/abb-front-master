@@ -6,6 +6,12 @@ export const Layout = () => import("@/layouts/index.vue");
 // 静态路由
 export const constantRoutes: RouteRecordRaw[] = [
   {
+    path: "/schedule-prototype",
+    name: "SchedulePrototype",
+    component: () => import("@/views/abb/schedule-prototype/index.vue"),
+    meta: { hidden: true, title: "实验室排程" },
+  },
+  {
     path: "/redirect",
     component: Layout,
     meta: { hidden: true },
